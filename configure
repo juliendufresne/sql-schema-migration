@@ -1,0 +1,287 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+IFS=$'\n\t'
+
+declare -r PROJECT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+declare -r MAKEFILE_PATH="${PROJECT_PATH}/Makefile"
+declare -g INTERACTIVE=true
+declare -g INSTALL_MODE=""
+
+function main()
+{
+    parse_opt "$@"
+    check_requirements
+    remove_previous_makefile
+    generate_new_makefile
+}
+
+# parse this script option
+function parse_opt()
+{
+    while [[ "$#" -gt 0 ]]
+    do
+        declare key="$1"
+        case "$key" in
+            --help|-h)
+                show_help
+                exit 0
+            ;;
+            --no-interaction|-n)
+                INTERACTIVE=false
+            ;;
+            docker|raw|vagrant)
+                INSTALL_MODE="$key"
+            ;;
+            *)
+                >&2 printf "\n"
+                >&2 printf "\e[37;41m                                                                                \e[39;49m\n"
+                >&2 printf "\e[37;41m  [ERROR] Unknown script option $key                                            \e[39;49m\n"
+                >&2 printf "\e[37;41m                                                                                \e[39;49m\n"
+                >&2 printf "\n"
+                show_usage
+
+                exit 1
+            ;;
+        esac
+        shift
+    done
+
+    if [[ -z "$INSTALL_MODE" ]]
+    then
+        >&2 printf "\n"
+        >&2 printf "\e[37;41m                                                                                \e[39;49m\n"
+        >&2 printf "\e[37;41m  [ERROR] Missing argument install-mode                                         \e[39;49m\n"
+        >&2 printf "\e[37;41m                                                                                \e[39;49m\n"
+        >&2 printf "\n"
+        show_usage
+
+        exit 1
+    fi
+}
+
+function show_help()
+{
+    declare -r green="\e[32m"
+    declare -r yellow="\e[33m"
+    declare -r reset_foreground="\e[39m"
+
+    printf "
+${yellow}Usage:${reset_foreground}
+  $0 [options] <install-mode>
+
+${yellow}Arguments:${reset_foreground}
+  ${green}install-mode${reset_foreground}    The type of virtualization. One of docker, vagrant or raw.
+
+${yellow}Options:${reset_foreground}
+Note: every options can be defined with environment variable with prefix DEPLOY_*
+  ${green}-h, --help${reset_foreground}             Display this help message
+  ${green}-n, --no-interaction${reset_foreground}   Do not ask any interactive question
+"
+}
+
+function show_usage()
+{
+    >&2 printf "\e[32m Usage: $0 [-h|--help] [-n|--no-interaction] <install-mode>\e[39m\n"
+}
+
+function remove_previous_makefile()
+{
+    if ! [[ -f "$MAKEFILE_PATH" ]]
+    then
+        return 0
+    fi
+
+    printf " \e[33m ! [NOTE] A Makefile already exists\e[39m\n\n"
+
+    declare previous_mode
+    detect_previous_install_mode "previous_mode"
+
+    if [[ "$previous_mode" != "$INSTALL_MODE" ]]
+	then
+	    >&2 printf " \e[37;41m !                                                        \e[0m\n"
+	    >&2 printf " \e[37;41m ! [CAUTION] Before changing install mode, you must run:  \e[0m\n"
+	    >&2 printf " \e[37;41m !                                                        \e[0m\n"
+	    >&2 printf " \e[37;41m !           make distclean                               \e[0m\n"
+	    >&2 printf " \e[37;41m !                                                        \e[0m\n\n"
+
+	    return 1
+	fi
+
+
+    declare ok=false
+    declare answer
+    if ! ${INTERACTIVE}
+	then
+		ok=true
+		answer="yes"
+	fi
+
+    while ! ${ok}
+    do
+        printf "\e[32m Do you want to override it? (yes/no) \e[39m[\e[33myes\e[39m]:\n > "
+        read answer
+        if [[ -z "$answer" ]]
+        then
+            answer="yes"
+        fi
+        answer="$(echo "$answer" | tr '[:upper:]' '[:lower:]')"
+
+        case "${answer}" in
+            y|yes)
+                answer="yes"
+                ok=true
+            ;;
+            n|no)
+		        >&2 printf "\e[31m Aborted by user.\e[39m\n"
+		        exit 0
+            ;;
+            exit)
+                exit 0
+            ;;
+            *)
+                printf "\e[33m Valid answers are: yes or no\e[39m\n\n"
+            ;;
+        esac
+    done
+
+    printf "\n"
+
+    rm -f "$MAKEFILE_PATH"
+}
+
+function detect_previous_install_mode()
+{
+	declare -n _mode="$1"
+
+	_mode="raw"
+	if [[ -f "${PROJECT_PATH}/docker-compose.yml" ]]
+	then
+		_mode="docker"
+		return 0
+	fi
+
+	if [[ -f "${PROJECT_PATH}/Vagrantfile" ]]
+	then
+		_mode="vagrant"
+		return 0
+	fi
+
+	return 0
+}
+
+function check_requirements()
+{
+	case "$INSTALL_MODE" in
+	    docker)
+	        check_requirements_docker || exit 1
+	    ;;
+	    raw)
+	        check_requirements_raw || exit 1
+	    ;;
+	    vagrant)
+	        check_requirements_vagrant || exit 1
+	    ;;
+	esac
+
+}
+
+function check_requirements_docker()
+{
+    if ! which docker &>/dev/null
+    then
+        >&2 printf "\e[31mdocker does not seems to be installed on your system or is not available in your PATH.\e[39m\n"
+
+        return 1
+    fi
+
+    if ! which docker-compose &>/dev/null
+    then
+        >&2 printf "\e[31mdocker-compose does not seems to be installed on your system or is not available in your PATH.\e[39m\n"
+
+        return 1
+    fi
+
+    return 0
+}
+
+function check_requirements_raw()
+{
+    if ! which php &>/dev/null
+    then
+        >&2 printf "\e[31mphp does not seems to installed on your system.\e[39m\n"
+
+        return 1
+    fi
+
+    for mandatory_extension in 'bcmath' 'curl' 'mbstring' 'pdo_mysql' 'xml'
+    do
+        if ! php -m | grep -q "^${mandatory_extension}\$"
+        then
+            >&2 printf "\e[31mphp extension $mandatory_extension does not seems to installed on your system.\e[39m\n"
+
+            return 1
+        fi
+    done
+
+    return 0
+}
+
+function check_requirements_vagrant()
+{
+    if ! which VBoxManage &>/dev/null
+    then
+        >&2 printf "\e[31mvirtualbox does not seems to installed on your system.\e[39m\n"
+
+        return 1
+    fi
+
+    if ! which vagrant &>/dev/null
+    then
+        >&2 printf "\e[31mvagrant does not seems to be installed on your system or is not available in your PATH.\e[39m\n"
+
+        return 1
+    fi
+
+    return 0
+}
+
+function generate_new_makefile()
+{
+    declare -r provision_makefile="${PROJECT_PATH}/.provision/${INSTALL_MODE}/Makefile.part"
+    declare -r result="$(mktemp)"
+    cp "${PROJECT_PATH}/.provision/Makefile.common" "$result"
+
+    for block_name in 'PROVISION_VARIABLES' 'PROVISION_HELP' 'PROVISION_TARGETS'
+    do
+        # did we found the pattern on .provision/<system>/Makefile.part
+        if grep -q "###>$block_name###" "$provision_makefile"
+        then
+            declare extracted_block="$(mktemp)"
+            # extract the block from the .provision/<system>/Makefile.part
+            sed -e "1,/###>$block_name###/d" -e "/###<$block_name###/,\$d" "$provision_makefile" > "$extracted_block"
+
+            if [[ "$(cat "$extracted_block" | wc -l)" -gt 0 ]]
+            then
+                declare new_result="$(mktemp)"
+                declare -i nb_lines_file=$(cat $result | wc -l)
+                declare -i nb_lines_before_block=$(grep -n -e "###>$block_name###" "$result" | cut -d ':' -f 1)
+                declare -i nb_lines_after_block=$(grep -n -e "###<$block_name###" "$result" | cut -d ':' -f 1)
+                nb_lines_after_block=$((nb_lines_file - nb_lines_after_block))
+                head -n $nb_lines_before_block "$result" >  "$new_result"
+                cat "$extracted_block"                   >> "$new_result"
+                tail -n $nb_lines_after_block "$result"  >> "$new_result"
+
+                mv "$new_result" "$result"
+            fi
+            rm $extracted_block
+        fi
+        # remove lines containing ###>....#
+        sed -e "/###>$block_name###/d" -e "/###<$block_name###/d" "$result" >"${result}.new"
+        mv "${result}.new" "${result}"
+    done
+
+    mv "$result" Makefile
+}
+
+main "$@"

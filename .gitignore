@@ -1,0 +1,39 @@
+###> provision ###
+/.provision/docker/Dockerfile
+/.vagrant/
+/docker-compose.yml
+/Makefile
+/Vagrantfile
+###< provision ###
+
+###> IDE ###
+/.idea/
+*~
+*.swp
+*.swo
+###< IDE ###
+
+###> Operating Systems ###
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+###< Operating Systems ###
+
+###> friendsofphp/php-cs-fixer ###
+/.php_cs
+###< friendsofphp/php-cs-fixer ###
+
+###> phpunit/phpunit ###
+/.phpunit.xml
+/reports/
+###< phpunit/phpunit ###
+
+###> symfony/framework-bundle ###
+/var/
+/vendor/
+###< symfony/framework-bundle ###
+

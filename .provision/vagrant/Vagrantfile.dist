@@ -1,0 +1,42 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "juliendufresne/debian-8.8"
+
+  config.vm.synced_folder ".", "/vagrant", disabled: true
+
+  config.vm.define "app" do |app|
+      app.vm.hostname = "sql-schema-migration-app"
+      app.vm.network "private_network", ip: "192.168.33.2"
+      app.vm.synced_folder ".", "/vagrant", id: "v-root", mount_options: ["rw", "tcp", "nolock", "noacl", "async"], type: "nfs", nfs_udp: false
+      app.vm.provision :shell, :name => "system", :inline => "cd /vagrant/.provision/vagrant && /bin/bash system.sh"
+      app.vm.provision :shell, :name => "locale", :inline => "cd /vagrant/.provision/vagrant && /bin/bash locale.sh"
+      app.vm.provision :shell, :name => "php",    :inline => "cd /vagrant/.provision/vagrant && /bin/bash php.sh"
+      app.vm.provider "virtualbox" do |vb|
+        vb.name = "sql-schema-migration-app"
+        vb.memory = "1024"
+      end
+  end
+
+  config.hostmanager.enabled = true
+  config.hostmanager.manage_host = true
+  config.hostmanager.manage_guest = true
+  config.hostmanager.ignore_private_ip = false
+  config.hostmanager.include_offline = true
+end
+
+#
+# vagrant plugin installation
+#
+required_plugins = %w(vagrant-hostmanager vagrant-vbguest)
+
+plugins_to_install = required_plugins.select { |plugin| not Vagrant.has_plugin? plugin }
+if not plugins_to_install.empty?
+  puts "Installing plugins: #{plugins_to_install.join(' ')}"
+  if system "vagrant plugin install #{plugins_to_install.join(' ')}"
+    exec "vagrant #{ARGV.join(' ')}"
+  else
+    abort "Installation of one or more plugins has failed. Aborting."
+  end
+end

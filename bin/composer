@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+# -e: exit as soon as a command exit with a non-zero status code
+# -u: prevent from any undefined variable
+# -o pipefail: force pipelines to fail on the first non-zero status code
+set -euo pipefail
+# Avoid using space as a separator (default IFS=$' \t\n')
+IFS=$'\n\t'
+
+function main
+{
+    declare -r current_script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    cd "$current_script_dir/.."
+
+    # we are using vagrant and we are not in the vagrant machine
+    if [[ -f Vagrantfile ]] && ! [[ -d /vagrant ]]
+    then
+        vagrant ssh --no-tty app -- -n "cd /vagrant && composer $@"
+    elif [[ -f docker-compose.yml ]] && ! [[ -f /.dockerenv ]]
+    then
+        docker-compose exec app composer $@
+    elif hash "composer" &>/dev/null
+    then
+        composer $@
+    elif hash "composer.phar" &>/dev/null
+    then
+        composer.phar $@
+    else
+        >&2 printf "
+\e[37;41m                                                              \e[39;49m
+\e[37;41m  [ERROR] Unable to found composer (or composer.phar) binary  \e[39;49m
+\e[37;41m                                                              \e[39;49m
+"
+        return 1
+    fi
+
+    return 0
+}
+readonly -f "main"
+
+main $@

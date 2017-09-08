@@ -1,0 +1,47 @@
+
+###>PROVISION_VARIABLES###
+COMPOSER_BIN := /home/vagrant/.composer/vendor/bin
+PROVISION_CLEAN := vagrant-clean
+PROVISION_INSTALL := vagrant-up
+PARALLEL_LINT_BIN := $(COMPOSER_BIN)/parallel-lint
+PHP_CS_FIXER_BIN := $(COMPOSER_BIN)/php-cs-fixer
+PHPSTAN_BIN := $(COMPOSER_BIN)/phpstan
+PHPUNIT_BIN := vendor/bin/phpunit
+###<PROVISION_VARIABLES###
+
+help:
+###>PROVISION_HELP###
+	@echo ""
+	@echo "\033[33m Vagrant commands:\033[39m"
+	@echo "\033[32m   vagrant-destroy      \033[39m   destroy virtual machines"
+	@echo "\033[32m   vagrant-halt         \033[39m   stop virtual machines"
+	@echo "\033[32m   vagrant-status       \033[39m   status of virtual machines"
+	@echo "\033[32m   vagrant-up           \033[39m   start virtual machines"
+###<PROVISION_HELP###
+
+###>PROVISION_TARGETS###
+###> vagrant ###
+.PHONY: vagrant-*
+
+vagrant-clean: vagrant-destroy
+	@rm -f Vagrantfile || true
+
+vagrant-destroy: vagrant-files
+	@vagrant destroy -f
+	@rm -rf .vagrant
+
+vagrant-files: Vagrantfile
+
+vagrant-halt: vagrant-files
+	@vagrant halt
+
+vagrant-status: vagrant-files
+	@vagrant status
+
+vagrant-up: vagrant-files
+	@vagrant up
+
+Vagrantfile: .provision/vagrant/Vagrantfile.dist
+	@cp $< $@
+###< vagrant ###
+###<PROVISION_TARGETS###

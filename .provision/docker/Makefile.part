@@ -1,0 +1,61 @@
+
+###>PROVISION_VARIABLES###
+COMPOSER_BIN := /home/app/.composer/vendor/bin
+PROVISION_CLEAN := container-clean
+PROVISION_INSTALL := container-install
+PARALLEL_LINT_BIN := $(COMPOSER_BIN)/parallel-lint
+PHP_CS_FIXER_BIN := $(COMPOSER_BIN)/php-cs-fixer
+PHPSTAN_BIN := $(COMPOSER_BIN)/phpstan
+PHPUNIT_BIN := vendor/bin/phpunit
+###<PROVISION_VARIABLES###
+
+help:
+###>PROVISION_HELP###
+	@echo ""
+	@echo "\033[33m Docker commands:\033[39m"
+	@echo "\033[32m   container-down         \033[39m   destroy all containers"
+	@echo "\033[32m   container-logs         \033[39m   syslog of all containers"
+	@echo "\033[32m   container-status       \033[39m   status of all containers"
+	@echo "\033[32m   container-stop         \033[39m   stop all containers"
+	@echo "\033[32m   container-up           \033[39m   start all containers"
+###<PROVISION_HELP###
+
+###>PROVISION_TARGETS###
+###> container ###
+.PHONY: container-*
+
+DOCKERFILES := .provision/docker/Dockerfile
+
+container-clean: container-down
+	@rm -f $(DOCKERFILES) || true
+	@rm -f docker-compose.yml || true
+
+container-down: container-files
+	@docker-compose down
+	@docker volume prune --force
+
+container-files: docker-compose.yml $(DOCKERFILES)
+
+container-logs: container-files
+	@docker-compose logs
+
+container-install: container-files
+	@docker-compose build
+	@$(MAKE) -s container-up
+
+container-status: container-files
+	@docker-compose ps
+
+container-stop: container-files
+	@docker-compose stop
+
+container-up: container-files
+	@docker-compose up --build -d
+
+.provision/docker/Dockerfile: .provision/docker/Dockerfile.dist
+	@sed -e "s/{USER_ID}/$(shell id -u)/g" -e "s/{GROUP_ID}/$(shell id -g)/g" $< > $@
+
+docker-compose.yml: .provision/docker/docker-compose.yml.dist
+	@cp $< $@
+###< container ###
+###<PROVISION_TARGETS###

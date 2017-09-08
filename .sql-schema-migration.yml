@@ -1,0 +1,9 @@
+servers:
+    sql1:
+        migration_table_name: '_migrate'
+        databases:
+            'db_*':
+                tables: '*'
+        commands:
+            dump: 'mysqldump -u $USER {database} {table}'
+            sql: 'mysql -u $USER {database} -e "{sql}"'

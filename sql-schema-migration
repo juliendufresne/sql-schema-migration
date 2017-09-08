@@ -1,0 +1,14 @@
+#!/usr/bin/env php
+<?php
+
+$autoload = __DIR__.'/../../autoload.php';
+// installed via composer
+if (file_exists($autoload)) {
+    require_once $autoload;
+} else {
+    require_once __DIR__.'/vendor/autoload.php';
+}
+
+use JulienDufresne\SQLSchemaMigration\Application;
+$application = new Application();
+$application->run();

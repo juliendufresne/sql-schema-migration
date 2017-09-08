@@ -1,0 +1,46 @@
+
+###>PROVISION_VARIABLES###
+PROVISION_CLEAN :=
+PROVISION_INSTALL :=
+
+PARALLEL_LINT_COMPOSER := $(shell composer global config bin-dir --absolute 2>/dev/null)/parallel-lint
+PARALLEL_LINT_GLOBAL_BIN := $(shell which parallel-lint)
+PARALLEL_LINT_GLOBAL_PHAR := $(shell which parallel-lint.phar)
+ifneq "$(strip $(shell which parallel-lint)" ""
+PARALLEL_LINT_BIN := "$(shell which parallel-lint)"
+else ifneq "$(strip $(shell which parallel-lint.phar))" ""
+PARALLEL_LINT_BIN := "$(PARALLEL_LINT_GLOBAL_PHAR)"
+else
+PARALLEL_LINT_BIN := "$(shell composer global config bin-dir --absolute 2>/dev/null)/parallel-lint"
+endif
+
+PHP_CS_FIXER_COMPOSER := $(shell composer global config bin-dir --absolute 2>/dev/null)/php-cs-fixer
+PHP_CS_FIXER_GLOBAL_BIN := $(shell which php-cs-fixer)
+PHP_CS_FIXER_GLOBAL_PHAR := $(shell which php-cs-fixer.phar)
+ifneq "$(strip $(PHP_CS_FIXER_GLOBAL_BIN))" ""
+PHP_CS_FIXER_BIN := "$(PHP_CS_FIXER_GLOBAL_BIN)"
+else ifneq "$(strip $(PHP_CS_FIXER_GLOBAL_PHAR))" ""
+PHP_CS_FIXER_BIN := "$(PHP_CS_FIXER_GLOBAL_PHAR)"
+else
+PHP_CS_FIXER_BIN := "$(PHP_CS_FIXER_COMPOSER)"
+endif
+
+PHPSTAN_COMPOSER := $(shell composer global config bin-dir --absolute 2>/dev/null)/phpstan
+PHPSTAN_GLOBAL_BIN := $(shell which phpstan)
+PHPSTAN_GLOBAL_PHAR := $(shell which phpstan.phar)
+ifneq "$(strip $(PHPSTAN_GLOBAL_BIN))" ""
+PHPSTAN_BIN := "$(PHPSTAN_GLOBAL_BIN)"
+else ifneq "$(strip $(PHPSTAN_GLOBAL_PHAR))" ""
+PHPSTAN_BIN := "$(PHPSTAN_GLOBAL_PHAR)"
+else
+PHPSTAN_BIN := "$(PHPSTAN_COMPOSER)"
+endif
+
+ifneq ($(shell which phpunit),)
+PHPUNIT_BIN := $(shell which phpunit)
+else ifneq ($(shell which phpunit.phar),)
+PHPUNIT_BIN := $(shell which phpunit.phar)
+else
+PHPUNIT_BIN := vendor/bin/phpunit
+endif
+###<PROVISION_VARIABLES###

@@ -1,0 +1,35 @@
+#!/usr/bin/env php
+<?php
+
+use App\Kernel;
+use Symfony\Bundle\FrameworkBundle\Console\Application;
+use Symfony\Component\Console\Input\ArgvInput;
+use Symfony\Component\Debug\Debug;
+use Symfony\Component\Dotenv\Dotenv;
+
+umask(0000);
+set_time_limit(0);
+
+require __DIR__.'/../vendor/autoload.php';
+
+$input = new ArgvInput();
+
+$env = 'prod';
+$debug = false;
+
+// In non development environment, we install vendors with "composer install --no-dev" so we don't have the Dotenv class
+// This trick allows to not set "--env=prod --no-debug" to every commands in production environment
+if (class_exists(Dotenv::class)) {
+    if (!getenv('ES_INDEXER_ENV')) {
+        (new Dotenv())->load(__DIR__.'/../.env');
+    }
+    $env = $input->getParameterOption(['--env', '-e'], getenv('ES_INDEXER_ENV') ?: 'dev');
+    $debug = getenv('ES_INDEXER_DEBUG') !== '0' && !$input->hasParameterOption(['--no-debug']);
+    if ($debug && class_exists(Debug::class)) {
+        Debug::enable();
+    }
+}
+
+$kernel = new Kernel($env, $debug);
+$application = new Application($kernel);
+$application->run($input);

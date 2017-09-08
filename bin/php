@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+# -e: exit as soon as a command exit with a non-zero status code
+# -u: prevent from any undefined variable
+# -o pipefail: force pipelines to fail on the first non-zero status code
+set -euo pipefail
+# Avoid using space as a separator (default IFS=$' \t\n')
+IFS=$'\n\t'
+
+function main
+{
+    declare -r current_script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    cd "$current_script_dir/.."
+
+    if [[ $# -gt 0 ]] && [[ "$1" = "php" ]]
+    then
+        shift
+    fi
+
+    # we are using vagrant and we are not in the vagrant machine
+    if [[ -f Vagrantfile ]] && ! [[ -d /vagrant ]]
+    then
+        vagrant ssh --no-tty app -- -n "cd /vagrant && php $@"
+    # we are using docker and we are not in the docker container
+    elif [[ -f docker-compose.yml ]] && ! [[ -f /.dockerenv ]]
+    then
+        docker-compose exec app php $@
+    else
+        php $@
+    fi
+
+    return 0
+}
+
+main $@
